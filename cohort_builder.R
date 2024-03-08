@@ -1,10 +1,10 @@
 #############################
 # Cohort builder: Parquet folder structure on External Parquet Data
-# Folder structure: datasetType->participant->file; 
+# Folder structure: cohort->datasetType->participant->file; 
 # We will add the cohort level annotation for file path while generating the DRS manifest
 # datasets to do: dataset_fitbitintradaycombined, dataset_healthkitv2samples
 #############################
-start_time <- Sys.time()
+main_start_time <- Sys.time()
 ########
 # Required Libraries
 ########
@@ -17,9 +17,10 @@ library(synapserutils)
 # Set up Access and download dataset
 ########
 synapser::synLogin()
-ARCHIVE_VERSION <- '2023-09-21'
+ARCHIVE_VERSION <- '2024-02-29'
 # To get a list of possible ARCHIVE_VERSION (dates), look at syn52506069 in Synapse.
 # It will have a list of possible dates as subfolders
+unlink('./cohort_builder/', recursive = TRUE) # remove old partitioning 
 
 ########
 #### Set up access and Get list of valid datasets
@@ -71,25 +72,16 @@ subset_paths_df <- valid_paths_ext_df %>%
 subset_cohort_meta <- apply(subset_paths_df, 1, function(df_row){
   datasetType <- df_row[['datasetType']]
   parquet_path_external <- df_row[['parquet_path_external']]
-  temp_df <- arrow::open_dataset(s3_external$path(as.character(parquet_path_external))) %>% dplyr::collect()
+  temp_df <- arrow::open_dataset(s3_external$path(as.character(parquet_path_external))) %>% 
+    dplyr::mutate(datasetType = datasetType)
   
   temp_df %>% 
-    dplyr::group_by(ParticipantIdentifier) %>% 
-    arrow::write_dataset(paste0('cohort_builder/', datasetType),
+    dplyr::group_by(cohort,datasetType,ParticipantIdentifier) %>% 
+    arrow::write_dataset('cohort_builder/',
                          format = 'parquet',
                          max_partitions = 10000, # Max number of partitions possible, i.,e max participants 
                          hive_style = FALSE)
-  
-  meta_data_files <- list.files(paste0('cohort_builder/', datasetType), recursive = T) %>% 
-    as.data.frame() %>% 
-    `colnames<-`('filePath') %>% 
-    dplyr::rowwise() %>% 
-    dplyr::mutate(ParticipantIdentifier = substr(filePath, 1,13)) %>% 
-    dplyr::mutate(filePath = paste0('cohort_builder/', datasetType,'/',filePath)) %>% 
-    dplyr::ungroup() %>% 
-    dplyr::mutate(datasetType = datasetType)
-  
-  return(meta_data_files)
+  print(paste0(datasetType,'--DONE'))
 })
 gc()
 completed_datasets <- subset_paths_df$datasetType %>% as.character()
@@ -103,36 +95,25 @@ dataset_path <- valid_paths_ext_df %>%
   dplyr::filter(datasetType == 'dataset_symptomlog')
 
 id_map_df <- arrow::open_dataset(s3_external$path(as.character(dataset_path$parquet_path_external))) %>%
-  dplyr::collect() %>% 
-  dplyr::select(ParticipantIdentifier, DataPointKey) %>% 
+  dplyr::select(ParticipantIdentifier, DataPointKey) %>%
   unique()
 
 symptomlog_cohort_meta <- apply(subset_paths_df, 1, function(df_row){
   datasetType <- df_row[['datasetType']]
   parquet_path_external <- df_row[['parquet_path_external']]
-  temp_df <- arrow::open_dataset(s3_external$path(as.character(parquet_path_external))) %>%
-    dplyr::collect()
+  temp_df <- arrow::open_dataset(s3_external$path(as.character(parquet_path_external))) 
   
   temp_df <- temp_df %>% 
-    dplyr::left_join(id_map_df) # get ParticipantIdentifier column
+    dplyr::mutate(datasetType = datasetType) %>% 
+    dplyr::left_join(id_map_df)  # get ParticipantIdentifier column
   
   temp_df %>% 
-    dplyr::group_by(ParticipantIdentifier) %>% 
-    arrow::write_dataset(paste0('cohort_builder/', datasetType),
+    dplyr::group_by(cohort, datasetType, ParticipantIdentifier) %>% 
+    arrow::write_dataset('cohort_builder/',
                          format = 'parquet',
                          max_partitions = 10000, # Max number of partitions possible, i.,e max participants 
                          hive_style = FALSE)
-  
-  meta_data_files <- list.files(paste0('cohort_builder/', datasetType), recursive = T) %>% 
-    as.data.frame() %>% 
-    `colnames<-`('filePath') %>% 
-    dplyr::rowwise() %>% 
-    dplyr::mutate(ParticipantIdentifier = substr(filePath, 1,13)) %>% 
-    dplyr::mutate(filePath = paste0('cohort_builder/', datasetType,'/',filePath)) %>% 
-    dplyr::ungroup() %>% 
-    dplyr::mutate(datasetType = datasetType)
-  
-  return(meta_data_files)
+  print(paste0(datasetType,'--DONE'))
 })
 gc()
 completed_datasets <- c(completed_datasets, subset_paths_df$datasetType)
@@ -141,31 +122,23 @@ completed_datasets <- c(completed_datasets, subset_paths_df$datasetType)
 subset_paths_df <- valid_paths_ext_df %>% 
   dplyr::filter(grepl('fitbit',datasetType)) %>% 
   dplyr::filter(!grepl('intraday',datasetType)) %>% 
-  dplyr::filter(!grepl('sleep',datasetType))
+  dplyr::filter(!grepl('sleep',datasetType)) %>% 
+  dplyr::filter(!grepl('ecg',datasetType))
 
 fitbit_cohort_meta <- apply(subset_paths_df, 1, function(df_row){
   datasetType <- df_row[['datasetType']]
   parquet_path_external <- df_row[['parquet_path_external']]
   temp_df <- arrow::open_dataset(s3_external$path(as.character(parquet_path_external))) %>%
-    dplyr::collect()
+    dplyr::mutate(datasetType = datasetType)
   
   temp_df %>% 
-    dplyr::group_by(ParticipantIdentifier) %>% 
-    arrow::write_dataset(paste0('cohort_builder/', datasetType),
+    dplyr::group_by(cohort, datasetType, ParticipantIdentifier) %>% 
+    arrow::write_dataset('cohort_builder/',
                          format = 'parquet',
                          max_partitions = 10000, # Max number of partitions possible, i.,e max participants 
                          hive_style = FALSE)
   
-  meta_data_files <- list.files(paste0('cohort_builder/', datasetType), recursive = T) %>% 
-    as.data.frame() %>% 
-    `colnames<-`('filePath') %>% 
-    dplyr::rowwise() %>% 
-    dplyr::mutate(ParticipantIdentifier = substr(filePath, 1,13)) %>% 
-    dplyr::mutate(filePath = paste0('cohort_builder/', datasetType,'/',filePath)) %>% 
-    dplyr::ungroup() %>% 
-    dplyr::mutate(datasetType = datasetType)
-  
-  return(meta_data_files)
+  print(paste0(datasetType,'--DONE'))
 })
 gc()
 completed_datasets <- c(completed_datasets, subset_paths_df$datasetType)
@@ -180,72 +153,85 @@ dataset_path <- valid_paths_ext_df %>%
   dplyr::filter(datasetType == 'dataset_fitbitsleeplogs')
 
 id_map_df <- arrow::open_dataset(s3_external$path(as.character(dataset_path$parquet_path_external))) %>%
-  dplyr::collect() %>% 
   dplyr::select(ParticipantIdentifier, LogId) %>% 
   unique()
 
 fitbit_sleeplogs_cohort_meta <- apply(subset_paths_df, 1, function(df_row){
   datasetType <- df_row[['datasetType']]
   parquet_path_external <- df_row[['parquet_path_external']]
-  temp_df <- arrow::open_dataset(s3_external$path(as.character(parquet_path_external))) %>%
-    dplyr::collect()
+  temp_df <- arrow::open_dataset(s3_external$path(as.character(parquet_path_external)))
   
   temp_df <- temp_df %>% 
-    dplyr::left_join(id_map_df) # get ParticipantIdentifier column
+    dplyr::mutate(datasetType = datasetType) %>% 
+    dplyr::left_join(id_map_df)  # get ParticipantIdentifier column
   
   temp_df %>% 
-    dplyr::group_by(ParticipantIdentifier) %>% 
-    arrow::write_dataset(paste0('cohort_builder/', datasetType),
+    dplyr::group_by(cohort, datasetType, ParticipantIdentifier) %>% 
+    arrow::write_dataset('cohort_builder/',
                          format = 'parquet',
                          max_partitions = 10000, # Max number of partitions possible, i.,e max participants 
                          hive_style = FALSE)
-  
-  meta_data_files <- list.files(paste0('cohort_builder/', datasetType), recursive = T) %>% 
-    as.data.frame() %>% 
-    `colnames<-`('filePath') %>% 
-    dplyr::rowwise() %>% 
-    dplyr::mutate(ParticipantIdentifier = substr(filePath, 1,13)) %>% 
-    dplyr::mutate(filePath = paste0('cohort_builder/', datasetType,'/',filePath)) %>% 
-    dplyr::ungroup() %>% 
-    dplyr::mutate(datasetType = datasetType)
-  
-  return(meta_data_files)
+  print(paste0(datasetType,'--DONE'))
 })
 gc()
 completed_datasets <- c(completed_datasets, subset_paths_df$datasetType)
 
-### Set5: dataset_healthkitv2activitysummaries,dataset_healthkitv2statistics
+### Set5: dataset_fitbitecg*(x2), # still have to consider fitbit intradaycombined data
+subset_paths_df <- valid_paths_ext_df %>% 
+  dplyr::filter(grepl('fitbit',datasetType)) %>% 
+  dplyr::filter(grepl('ecg',datasetType))
+
+# get the participantIdentifier, logId mapping from dataset_symptomlog
+dataset_path <- valid_paths_ext_df %>% 
+  dplyr::filter(datasetType == 'dataset_fitbitecg')
+
+id_map_df <- arrow::open_dataset(s3_external$path(as.character(dataset_path$parquet_path_external))) %>%
+  dplyr::select(ParticipantIdentifier, FitbitEcgKey) %>% 
+  unique() 
+
+fitbit_ecglogs_cohort_meta <- apply(subset_paths_df, 1, function(df_row){
+  datasetType <- df_row[['datasetType']]
+  parquet_path_external <- df_row[['parquet_path_external']]
+  temp_df <- arrow::open_dataset(s3_external$path(as.character(parquet_path_external))) 
+  
+  temp_df <- temp_df %>% 
+    dplyr::mutate(datasetType = datasetType) %>% 
+    dplyr::left_join(id_map_df) # to get ParticipantIdentifier column
+  
+  temp_df %>% 
+    dplyr::group_by(cohort, datasetType, ParticipantIdentifier) %>% 
+    arrow::write_dataset('cohort_builder/',
+                         format = 'parquet',
+                         max_partitions = 10000, # Max number of partitions possible, i.,e max participants 
+                         hive_style = FALSE)
+  print(paste0(datasetType,'--DONE'))
+})
+gc()
+completed_datasets <- c(completed_datasets, subset_paths_df$datasetType)
+
+### Set6: dataset_healthkitv2activitysummaries,dataset_healthkitv2statistics
 subset_paths_df <- valid_paths_ext_df %>% 
   dplyr::filter(datasetType %in% c('dataset_healthkitv2statistics',
                                    'dataset_healthkitv2activitysummaries')) 
+
 healthkit_cohort_meta <- apply(subset_paths_df, 1, function(df_row){
   datasetType <- df_row[['datasetType']]
   parquet_path_external <- df_row[['parquet_path_external']]
-  temp_df <- arrow::open_dataset(s3_external$path(as.character(parquet_path_external))) %>%
-    dplyr::collect()
+  temp_df <- arrow::open_dataset(s3_external$path(as.character(parquet_path_external))) %>% 
+    dplyr::mutate(datasetType = datasetType)
   
   temp_df %>% 
-    dplyr::group_by(ParticipantIdentifier) %>% 
-    arrow::write_dataset(paste0('cohort_builder/', datasetType),
+    dplyr::group_by(cohort, datasetType, ParticipantIdentifier) %>% 
+    arrow::write_dataset('cohort_builder/',
                          format = 'parquet',
                          max_partitions = 10000, # Max number of partitions possible, i.,e max participants 
                          hive_style = FALSE)
-  
-  meta_data_files <- list.files(paste0('cohort_builder/', datasetType), recursive = T) %>% 
-    as.data.frame() %>% 
-    `colnames<-`('filePath') %>% 
-    dplyr::rowwise() %>% 
-    dplyr::mutate(ParticipantIdentifier = substr(filePath, 1,13)) %>% 
-    dplyr::mutate(filePath = paste0('cohort_builder/', datasetType,'/',filePath)) %>% 
-    dplyr::ungroup() %>% 
-    dplyr::mutate(datasetType = datasetType)
-  
-  return(meta_data_files)
+  print(paste0(datasetType,'--DONE'))
 })
 gc()
 completed_datasets <- c(completed_datasets, subset_paths_df$datasetType)
 
-# Set 6: dataset_healthkitv2heartbeat* (x2)
+# Set7: dataset_healthkitv2heartbeat* (x2)
 subset_paths_df <- valid_paths_ext_df  %>% 
   dplyr::filter(grepl('healthkit',datasetType)) %>% 
   dplyr::filter(grepl('heartbeat',datasetType))
@@ -255,41 +241,30 @@ dataset_path <- valid_paths_ext_df %>%
   dplyr::filter(datasetType == 'dataset_healthkitv2heartbeat')
 
 id_map_df <- arrow::open_dataset(s3_external$path(as.character(dataset_path$parquet_path_external))) %>%
-  dplyr::collect() %>% 
   dplyr::select(ParticipantIdentifier, HealthKitHeartbeatSampleKey) %>% 
   unique()
 
 healthkit_heartbeat_cohort_meta <- apply(subset_paths_df, 1, function(df_row){
   datasetType <- df_row[['datasetType']]
   parquet_path_external <- df_row[['parquet_path_external']]
-  temp_df <- arrow::open_dataset(s3_external$path(as.character(parquet_path_external))) %>%
-    dplyr::collect()
+  temp_df <- arrow::open_dataset(s3_external$path(as.character(parquet_path_external))) 
   
-  temp_df <- temp_df %>%
-    dplyr::left_join(id_map_df) # get ParticipantIdentifier column
+  temp_df <- temp_df %>% 
+    dplyr::mutate(datasetType = datasetType) %>% 
+    dplyr::left_join(id_map_df)  # get ParticipantIdentifier column
   
   temp_df %>% 
-    dplyr::group_by(ParticipantIdentifier) %>% 
-    arrow::write_dataset(paste0('cohort_builder/', datasetType),
+    dplyr::group_by(cohort, datasetType, ParticipantIdentifier) %>% 
+    arrow::write_dataset('cohort_builder/',
                          format = 'parquet',
                          max_partitions = 10000, # Max number of partitions possible, i.,e max participants 
                          hive_style = FALSE)
-  
-  meta_data_files <- list.files(paste0('cohort_builder/', datasetType), recursive = T) %>% 
-    as.data.frame() %>% 
-    `colnames<-`('filePath') %>% 
-    dplyr::rowwise() %>% 
-    dplyr::mutate(ParticipantIdentifier = substr(filePath, 1,13)) %>% 
-    dplyr::mutate(filePath = paste0('cohort_builder/', datasetType,'/',filePath)) %>% 
-    dplyr::ungroup() %>% 
-    dplyr::mutate(datasetType = datasetType)
-  
-  return(meta_data_files)
+  print(paste0(datasetType,'--DONE'))  
 })
 gc()
 completed_datasets <- c(completed_datasets, subset_paths_df$datasetType)
 
-# Set 7: dataset_healthkitv2electrocardiogram* (x2)
+# Set 8: dataset_healthkitv2electrocardiogram* (x2)
 subset_paths_df <- valid_paths_ext_df  %>% 
   dplyr::filter(grepl('healthkit',datasetType)) %>% 
   dplyr::filter(grepl('electro',datasetType))
@@ -299,41 +274,30 @@ dataset_path <- valid_paths_ext_df %>%
   dplyr::filter(datasetType == 'dataset_healthkitv2electrocardiogram')
 
 id_map_df <- arrow::open_dataset(s3_external$path(as.character(dataset_path$parquet_path_external))) %>%
-  dplyr::collect() %>% 
   dplyr::select(ParticipantIdentifier, HealthKitECGSampleKey) %>% 
   unique()
 
 healthkit_ecg_cohort_meta <- apply(subset_paths_df, 1, function(df_row){
   datasetType <- df_row[['datasetType']]
   parquet_path_external <- df_row[['parquet_path_external']]
-  temp_df <- arrow::open_dataset(s3_external$path(as.character(parquet_path_external))) %>%
-    dplyr::collect()
+  temp_df <- arrow::open_dataset(s3_external$path(as.character(parquet_path_external))) 
   
-  temp_df <- temp_df %>%
-    dplyr::left_join(id_map_df) # get ParticipantIdentifier column
+  temp_df <- temp_df %>% 
+    dplyr::mutate(datasetType = datasetType) %>% 
+    dplyr::left_join(id_map_df)  # get ParticipantIdentifier column
   
   temp_df %>% 
-    dplyr::group_by(ParticipantIdentifier) %>% 
-    arrow::write_dataset(paste0('cohort_builder/', datasetType),
+    dplyr::group_by(cohort,datasetType,ParticipantIdentifier) %>% 
+    arrow::write_dataset('cohort_builder/',
                          format = 'parquet',
                          max_partitions = 10000, # Max number of partitions possible, i.,e max participants 
                          hive_style = FALSE)
-  
-  meta_data_files <- list.files(paste0('cohort_builder/', datasetType), recursive = T) %>% 
-    as.data.frame() %>% 
-    `colnames<-`('filePath') %>% 
-    dplyr::rowwise() %>% 
-    dplyr::mutate(ParticipantIdentifier = substr(filePath, 1,13)) %>% 
-    dplyr::mutate(filePath = paste0('cohort_builder/', datasetType,'/',filePath)) %>% 
-    dplyr::ungroup() %>% 
-    dplyr::mutate(datasetType = datasetType)
-  
-  return(meta_data_files)
+  print(paste0(datasetType,'--DONE'))
 })
 gc()
 completed_datasets <- c(completed_datasets, subset_paths_df$datasetType)
 
-# Set 8: dataset_healthkitv2workouts* (x2)
+# Set 9: dataset_healthkitv2workouts* (x2)
 subset_paths_df <- valid_paths_ext_df  %>% 
   dplyr::filter(grepl('healthkit',datasetType)) %>% 
   dplyr::filter(grepl('workout',datasetType))
@@ -343,43 +307,32 @@ dataset_path <- valid_paths_ext_df %>%
   dplyr::filter(datasetType == 'dataset_healthkitv2workouts')
 
 id_map_df <- arrow::open_dataset(s3_external$path(as.character(dataset_path$parquet_path_external))) %>%
-  dplyr::collect() %>% 
   dplyr::select(ParticipantIdentifier, HealthKitWorkoutKey) %>% 
   unique()
 
 healthkit_workouts_cohort_meta <- apply(subset_paths_df, 1, function(df_row){
   datasetType <- df_row[['datasetType']]
   parquet_path_external <- df_row[['parquet_path_external']]
-  temp_df <- arrow::open_dataset(s3_external$path(as.character(parquet_path_external))) %>%
-    dplyr::collect()
+  temp_df <- arrow::open_dataset(s3_external$path(as.character(parquet_path_external))) 
   
-  temp_df <- temp_df %>%
+  temp_df <- temp_df %>% 
+    dplyr::mutate(datasetType = datasetType) %>% 
     dplyr::left_join(id_map_df) # get ParticipantIdentifier column
   
   temp_df %>% 
-    dplyr::group_by(ParticipantIdentifier) %>% 
-    arrow::write_dataset(paste0('cohort_builder/', datasetType),
+    dplyr::group_by(cohort,datasetType,ParticipantIdentifier) %>% 
+    arrow::write_dataset('cohort_builder/',
                          format = 'parquet',
                          max_partitions = 10000, # Max number of partitions possible, i.,e max participants 
                          hive_style = FALSE)
-  
-  meta_data_files <- list.files(paste0('cohort_builder/', datasetType), recursive = T) %>% 
-    as.data.frame() %>% 
-    `colnames<-`('filePath') %>% 
-    dplyr::rowwise() %>% 
-    dplyr::mutate(ParticipantIdentifier = substr(filePath, 1,13)) %>% 
-    dplyr::mutate(filePath = paste0('cohort_builder/', datasetType,'/',filePath)) %>% 
-    dplyr::ungroup() %>% 
-    dplyr::mutate(datasetType = datasetType)
-  
-  return(meta_data_files)
+  print(paste0(datasetType,'--DONE'))
 })
 gc()
 completed_datasets <- c(completed_datasets, subset_paths_df$datasetType)
 
 #### BIG datasets [!! NOTE THIS SECTION WILL CRASH IF INSTANCE IS NOT BIG ENOUGH TO LOAD FULL DATASET]
 ## [[!! See if there is an alternate way of handling these two datasets?]]
-## Set9: dataset_fitbitintradaycombined
+## Set 9: dataset_fitbitintradaycombined
 ## Set 10: dataset_healthkitv2samples
-end_time <- Sys.time()
-print(end_time - start_time)
+main_end_time <- Sys.time()
+print(main_end_time - main_start_time)
