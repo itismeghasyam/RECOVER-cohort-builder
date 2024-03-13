@@ -4,6 +4,19 @@
 # We will add the cohort level annotation for file path while generating the DRS manifest
 # datasets to do: dataset_fitbitintradaycombined, dataset_healthkitv2samples
 #############################
+
+#############################
+# Code performance on a r6a.8x (256GB instance). On ARCHIVE_VERSIONS of external parquet data
+# 5.748258 hours for 2024-02-29
+# 3.906232 hours for 2024-02-01
+# 1.167115 hours for 2023-12-06
+# 1.280577 hours for 2023-11-10
+# 21 mins for 2023-09-21
+# 15 mins for 2023-09-08
+#############################
+
+
+
 main_start_time <- Sys.time()
 ########
 # Required Libraries
@@ -12,6 +25,7 @@ library(arrow)
 library(synapser)
 library(tidyverse)
 library(synapserutils)
+library(tictoc)
 
 ########
 # Set up Access and download dataset
@@ -20,7 +34,7 @@ synapser::synLogin()
 ARCHIVE_VERSION <- '2024-02-29'
 # To get a list of possible ARCHIVE_VERSION (dates), look at syn52506069 in Synapse.
 # It will have a list of possible dates as subfolders
-unlink('./cohort_builder/', recursive = TRUE) # remove old partitioning 
+unlink(paste0('./cohort_builder/main/archive/', ARCHIVE_VERSION), recursive = TRUE) # remove old partitioning
 
 ########
 #### Set up access and Get list of valid datasets
@@ -77,7 +91,7 @@ subset_cohort_meta <- apply(subset_paths_df, 1, function(df_row){
   
   temp_df %>% 
     dplyr::group_by(cohort,datasetType,ParticipantIdentifier) %>% 
-    arrow::write_dataset('cohort_builder/',
+    arrow::write_dataset(paste0('cohort_builder/main/archive/', ARCHIVE_VERSION),
                          format = 'parquet',
                          max_partitions = 10000, # Max number of partitions possible, i.,e max participants 
                          hive_style = FALSE)
@@ -109,7 +123,7 @@ symptomlog_cohort_meta <- apply(subset_paths_df, 1, function(df_row){
   
   temp_df %>% 
     dplyr::group_by(cohort, datasetType, ParticipantIdentifier) %>% 
-    arrow::write_dataset('cohort_builder/',
+    arrow::write_dataset(paste0('cohort_builder/main/archive/', ARCHIVE_VERSION),
                          format = 'parquet',
                          max_partitions = 10000, # Max number of partitions possible, i.,e max participants 
                          hive_style = FALSE)
@@ -133,7 +147,7 @@ fitbit_cohort_meta <- apply(subset_paths_df, 1, function(df_row){
   
   temp_df %>% 
     dplyr::group_by(cohort, datasetType, ParticipantIdentifier) %>% 
-    arrow::write_dataset('cohort_builder/',
+    arrow::write_dataset(paste0('cohort_builder/main/archive/', ARCHIVE_VERSION),
                          format = 'parquet',
                          max_partitions = 10000, # Max number of partitions possible, i.,e max participants 
                          hive_style = FALSE)
@@ -167,7 +181,7 @@ fitbit_sleeplogs_cohort_meta <- apply(subset_paths_df, 1, function(df_row){
   
   temp_df %>% 
     dplyr::group_by(cohort, datasetType, ParticipantIdentifier) %>% 
-    arrow::write_dataset('cohort_builder/',
+    arrow::write_dataset(paste0('cohort_builder/main/archive/', ARCHIVE_VERSION),
                          format = 'parquet',
                          max_partitions = 10000, # Max number of partitions possible, i.,e max participants 
                          hive_style = FALSE)
@@ -200,7 +214,7 @@ fitbit_ecglogs_cohort_meta <- apply(subset_paths_df, 1, function(df_row){
   
   temp_df %>% 
     dplyr::group_by(cohort, datasetType, ParticipantIdentifier) %>% 
-    arrow::write_dataset('cohort_builder/',
+    arrow::write_dataset(paste0('cohort_builder/main/archive/', ARCHIVE_VERSION),
                          format = 'parquet',
                          max_partitions = 10000, # Max number of partitions possible, i.,e max participants 
                          hive_style = FALSE)
@@ -222,7 +236,7 @@ healthkit_cohort_meta <- apply(subset_paths_df, 1, function(df_row){
   
   temp_df %>% 
     dplyr::group_by(cohort, datasetType, ParticipantIdentifier) %>% 
-    arrow::write_dataset('cohort_builder/',
+    arrow::write_dataset(paste0('cohort_builder/main/archive/', ARCHIVE_VERSION),
                          format = 'parquet',
                          max_partitions = 10000, # Max number of partitions possible, i.,e max participants 
                          hive_style = FALSE)
@@ -255,7 +269,7 @@ healthkit_heartbeat_cohort_meta <- apply(subset_paths_df, 1, function(df_row){
   
   temp_df %>% 
     dplyr::group_by(cohort, datasetType, ParticipantIdentifier) %>% 
-    arrow::write_dataset('cohort_builder/',
+    arrow::write_dataset(paste0('cohort_builder/main/archive/', ARCHIVE_VERSION),
                          format = 'parquet',
                          max_partitions = 10000, # Max number of partitions possible, i.,e max participants 
                          hive_style = FALSE)
@@ -288,7 +302,7 @@ healthkit_ecg_cohort_meta <- apply(subset_paths_df, 1, function(df_row){
   
   temp_df %>% 
     dplyr::group_by(cohort,datasetType,ParticipantIdentifier) %>% 
-    arrow::write_dataset('cohort_builder/',
+    arrow::write_dataset(paste0('cohort_builder/main/archive/', ARCHIVE_VERSION),
                          format = 'parquet',
                          max_partitions = 10000, # Max number of partitions possible, i.,e max participants 
                          hive_style = FALSE)
@@ -321,7 +335,7 @@ healthkit_workouts_cohort_meta <- apply(subset_paths_df, 1, function(df_row){
   
   temp_df %>% 
     dplyr::group_by(cohort,datasetType,ParticipantIdentifier) %>% 
-    arrow::write_dataset('cohort_builder/',
+    arrow::write_dataset(paste0('cohort_builder/main/archive/', ARCHIVE_VERSION),
                          format = 'parquet',
                          max_partitions = 10000, # Max number of partitions possible, i.,e max participants 
                          hive_style = FALSE)
@@ -330,9 +344,118 @@ healthkit_workouts_cohort_meta <- apply(subset_paths_df, 1, function(df_row){
 gc()
 completed_datasets <- c(completed_datasets, subset_paths_df$datasetType)
 
-#### BIG datasets [!! NOTE THIS SECTION WILL CRASH IF INSTANCE IS NOT BIG ENOUGH TO LOAD FULL DATASET]
-## [[!! See if there is an alternate way of handling these two datasets?]]
-## Set 9: dataset_fitbitintradaycombined
-## Set 10: dataset_healthkitv2samples
+##################
+## BIG datasets - [dataset_fitbitintradaycombined, dataset_healthkitv2samples]
+#### [!! NOTE: USE ATLEAST 128GB RAM INSTANCE FOR THIS SECTION; WILL CRASH IF RAM IS NOT BIG ENOUGH TO LOAD FULL DATASET]
+##################
+## Set 10: dataset_fitbitintradaycombined
+subset_paths_df <- valid_paths_ext_df %>% 
+  dplyr::filter(datasetType == 'dataset_fitbitintradaycombined')
+
+# tic()
+# Get number of rows per participant in the given dataset(dataset_fitbitintradaycombined)
+participant_ids <- arrow::open_dataset(s3_external$path(as.character(subset_paths_df$parquet_path_external))) %>%
+  dplyr::group_by(ParticipantIdentifier) %>%
+  dplyr::count() %>% 
+  dplyr::collect() 
+# %>% 
+  # dplyr::arrange(n) # ascending order => participant with least number of rows comes first
+
+MAX_ROWS_PER_CHUNK <- 200000000 
+# 1 Billion rows per chunk. 
+# Four participants have above 40Million rows each, the next have around 10Million and less, and so on. 
+# Hence instead of treating it as participants per chunk, we will pick the participants
+# based on number of rows in a chunk (as it keeps the chunk size approx same)
+participant_ids$n_cumsum <- cumsum(as.numeric(participant_ids$n))
+participant_ids$batch <- as.integer(participant_ids$n_cumsum/MAX_ROWS_PER_CHUNK)
+participant_ids_chunks <- split(participant_ids, participant_ids$batch)
+## Basically creates a subset of the dataset containing all the following participants
+## Reduce this number if you hit RAM limits, it will increase compute time as we will now have
+## more partitions, and for each partition we have to traverse the whole dataset to filter data
+## NOTE: If you get into lot many partitions, try increasing the instance. Use memory optimized
+## instances like r6a.4x(128GB) - this should be enough, r6a.8X (256GB memory)[this is best]
+
+print(paste0('Total number of chunks is ', length(participant_ids_chunks)))
+current_chunk <- 1;
+
+# tic()
+fitbit_intradaycombined_cohort_meta <- apply(subset_paths_df, 1, function(df_row){
+  datasetType <- df_row[['datasetType']]
+  parquet_path_external <- df_row[['parquet_path_external']]
+  
+  # Deal with data in chunks, so as to be easier on RAM
+  for(current_participant_chunk in participant_ids_chunks){
+    print(paste0('Current chunk is ', current_chunk))
+    temp_df <- arrow::open_dataset(s3_external$path(as.character(parquet_path_external))) %>%
+      dplyr::filter(ParticipantIdentifier %in% current_participant_chunk$ParticipantIdentifier) %>%
+      dplyr::mutate(datasetType = datasetType)
+
+    temp_df %>%
+      dplyr::group_by(cohort, datasetType, ParticipantIdentifier) %>%
+      arrow::write_dataset(paste0('cohort_builder/main/archive/', ARCHIVE_VERSION),
+                           format = 'parquet',
+                           max_partitions = 10000, # Max number of partitions possible, i.,e max participants
+                           hive_style = FALSE)
+    current_chunk <- current_chunk+1
+    gc()
+  }
+  print(paste0(datasetType,'--DONE'))
+})
+# toc()
+rm(current_chunk)
+
+## Set 11: dataset_healthkitv2samples
+subset_paths_df <- valid_paths_ext_df %>% 
+  dplyr::filter(datasetType == 'dataset_healthkitv2samples') 
+
+# tic()
+participant_ids <- arrow::open_dataset(s3_external$path(as.character(subset_paths_df$parquet_path_external))) %>%
+  dplyr::group_by(ParticipantIdentifier) %>%
+  dplyr::count() %>% 
+  dplyr::collect() %>% 
+  dplyr::arrange(n)
+
+MAX_ROWS_PER_CHUNK <- 7000000
+# 7 Million as one participant has around 7.65 Million rows, the highest. 
+# the second highest has around 1.2 Million rows - HUGE difference.
+# Hence instead of treating it as participants per chunk, we will pick the participants
+# based on number of rows in a chunk
+participant_ids$n_cumsum <- cumsum(as.numeric(participant_ids$n))
+participant_ids$batch <- as.integer(participant_ids$n_cumsum/MAX_ROWS_PER_CHUNK)
+participant_ids_chunks <- split(participant_ids, participant_ids$batch)
+## Basically creates a subset of the dataset containing all the following participants
+## Reduce this number if you hit RAM limits, it will increase compute time as we will now have
+## more partitions, and for each partition we have to traverse the whole dataset to filter data
+## NOTE: If you get into lot many partitions, try increasing the instance. Use memory optimized
+## instances like r6a.4x(128GB) - this should be enough, r6a.8X (256GB memory)[this is best]
+
+print(paste0('Total number of chunks is ', length(participant_ids_chunks)))
+current_chunk <- 1;
+
+healthkitv2samples_cohort_meta <- apply(subset_paths_df, 1, function(df_row){
+  datasetType <- df_row[['datasetType']]
+  parquet_path_external <- df_row[['parquet_path_external']]
+  
+  # Deal with data in chunks, so as to be easier on RAM
+  for(current_participant_chunk in participant_ids_chunks){
+    print(paste0('Current chunk is ', current_chunk))
+    temp_df <- arrow::open_dataset(s3_external$path(as.character(parquet_path_external))) %>%
+      dplyr::filter(ParticipantIdentifier %in% current_participant_chunk$ParticipantIdentifier) %>% 
+      dplyr::mutate(datasetType = datasetType) 
+    
+    temp_df %>% 
+      dplyr::group_by(cohort, datasetType, ParticipantIdentifier) %>% 
+      arrow::write_dataset(paste0('cohort_builder/main/archive/', ARCHIVE_VERSION),
+                           format = 'parquet',
+                           max_partitions = 10000, # Max number of partitions possible, i.,e max participants 
+                           hive_style = FALSE)
+    current_chunk <- current_chunk+1
+    gc()
+  }
+  print(paste0(datasetType,'--DONE'))
+})
+# toc()
+rm(current_chunk)
+
 main_end_time <- Sys.time()
 print(main_end_time - main_start_time)
