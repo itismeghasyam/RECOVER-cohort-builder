@@ -34,7 +34,7 @@ synapser::synLogin()
 ARCHIVE_VERSION <- '2024-02-29'
 # To get a list of possible ARCHIVE_VERSION (dates), look at syn52506069 in Synapse.
 # It will have a list of possible dates as subfolders
-unlink(paste0('./cohort_builder/main/archive/', ARCHIVE_VERSION), recursive = TRUE) # remove old partitioning
+# unlink(paste0('./cohort_builder/main/archive/', ARCHIVE_VERSION), recursive = TRUE) # remove old partitioning
 
 ########
 #### Set up access and Get list of valid datasets
