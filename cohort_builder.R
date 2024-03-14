@@ -5,6 +5,8 @@
 # datasets to do: dataset_fitbitintradaycombined, dataset_healthkitv2samples
 #############################
 
+## 
+
 #############################
 # Code performance on a r6a.8x (256GB instance). On ARCHIVE_VERSIONS of external parquet data
 # 5.748258 hours for 2024-02-29
@@ -14,8 +16,6 @@
 # 21 mins for 2023-09-21
 # 15 mins for 2023-09-08
 #############################
-
-
 
 main_start_time <- Sys.time()
 ########
@@ -456,6 +456,14 @@ healthkitv2samples_cohort_meta <- apply(subset_paths_df, 1, function(df_row){
 })
 # toc()
 rm(current_chunk)
+
+### Rename cohort from adults_v1 to adults, similarly for pediatric
+# Renaming folders here as it is easier (compute and time wise) and 
+# as of now we only have one version, v1. When we have more versions
+# we will revisit this
+archive_path <- paste0('./cohort_builder/main/archive/', ARCHIVE_VERSION)
+file.rename(paste0(archive_path,'/adults_v1'), paste0(archive_path,'/adults'))
+file.rename(paste0(archive_path,'/pediatric_v1'), paste0(archive_path,'/pediatric'))
 
 main_end_time <- Sys.time()
 print(main_end_time - main_start_time)
