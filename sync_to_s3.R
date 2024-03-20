@@ -2,9 +2,8 @@
 # Cohort builder: Sync curated parquets to S3
 #############################
 ### Params
-COHORT_BUILDER_LOCATION <- './cohort_builder'
-AWS_DESTINATION_BUCKET <- 'recover-velsera-integration'
-AWS_DESTINATION_FOLDER <- 'cohort_builder'
+LOCAL_COHORT_LOCATION <- 's3://recover-velsera-integration/main/archive/2024-02-29/'
+AWS_DESTINATION_LOCATION <- 's3://recover-velsera-integration/main/parquet/'
 
 ####
 # Required libraries and functions
@@ -27,7 +26,7 @@ s3SyncFromLocal <- function(local_source = './cohort_builder', destination_bucke
 # Sync curated parquets from local EC2 to S3 bucket (recover-velsera-integration)
 #############
 # synapser::synLogin(daemon_acc, daemon_acc_password) # login into Synapse
-sts_token <- synapser::synGetStsStorageToken(entity = 'syn53794904', # sts enabled folder in Synapse linked to S3 location
+sts_token <- synapser::synGetStsStorageToken(entity = 'syn54128723', # sts enabled folder in Synapse linked to S3 location
                                              permission = 'read_write',  
                                              output_format = 'json')
 
@@ -36,7 +35,6 @@ Sys.setenv('AWS_ACCESS_KEY_ID'=sts_token$accessKeyId,
            'AWS_SECRET_ACCESS_KEY'=sts_token$secretAccessKey,
            'AWS_SESSION_TOKEN'=sts_token$sessionToken)
 
-
-s3SyncFromLocal(local_source = COHORT_BUILDER_LOCATION,
-                destination_bucket = paste0('s3://', AWS_DESTINATION_BUCKET,'/',AWS_DESTINATION_FOLDER,'/'),
+s3SyncFromLocal(local_source = LOCAL_COHORT_LOCATION ,
+                destination_bucket = AWS_DESTINATION_LOCATION,
                 aws_profile = 'env-var')
