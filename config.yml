@@ -1,0 +1,19 @@
+#############################
+# Config file for cohort builder
+#############################
+default:
+  ARCHIVE_VERSION : '2024-02-29' 
+  # The version external archive we are using to build the cohort
+  synapseParquet_sts_location : 'syn52506069'
+  # Archived versions of the external parquet dataset (syn52506069)
+  LOCATION_TO_UPLOAD : './cohort_builder/main/archive/2024-02-29/'
+  # Local location which needs to be indexed in Synapse (generate_manifest.R)
+  SYNAPSE_PARENT_ID : 'syn55085564' 
+  # Synapse location where the S3 bucket objects are listed
+
+  cohort_builder_sts_location: 'syn54128737'
+  # Cohort builder Archive (syn54128737)
+  LOCAL_COHORT_LOCATION: './cohort_builder/main/archive/2024-02-29/'
+  # Local location of the cohort (sync_to_s3.R)
+  AWS_DESTINATION_LOCATION : 's3://recover-velsera-integration/main/archive/2024-02-29/'
+  # Where will the cohort go, in S3 bucket (sync_to_s3.R)

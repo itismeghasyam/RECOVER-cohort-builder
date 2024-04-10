@@ -1,10 +1,10 @@
 #############
 # Get a manifest of files to upload
 #############
-LOCATION_TO_UPLOAD <- './cohort_builder/main/archive/2023-09-08/'
+LOCATION_TO_UPLOAD <- config::get('LOCATION_TO_UPLOAD')
 # Local location which needs to be indexed in Synapse
 
-SYNAPSE_PARENT_ID = 'syn54128731' #Current Freeze Location
+SYNAPSE_PARENT_ID = config::get('SYNAPSE_PARENT_ID')
 # Synapse location where the S3 bucket objects are listed
 
 #############

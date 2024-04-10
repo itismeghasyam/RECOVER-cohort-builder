@@ -5,8 +5,6 @@
 # datasets to do: dataset_fitbitintradaycombined, dataset_healthkitv2samples
 #############################
 
-## 
-
 #############################
 # Code performance on a r6a.8x (256GB instance). On ARCHIVE_VERSIONS of external parquet data
 # 5.748258 hours for 2024-02-29
@@ -31,17 +29,17 @@ library(tictoc)
 # Set up Access and download dataset
 ########
 synapser::synLogin()
-ARCHIVE_VERSION <- '2024-02-29'
+ARCHIVE_VERSION <- config::get('ARCHIVE_VERSION')
 # To get a list of possible ARCHIVE_VERSION (dates), look at syn52506069 in Synapse.
 # It will have a list of possible dates as subfolders
 # unlink(paste0('./cohort_builder/main/archive/', ARCHIVE_VERSION), recursive = TRUE) # remove old partitioning
 
 ########
-#### Set up access and Get list of valid datasets
+#### Set up access and Get list of valid datasets from synapse_sts_location
 #### archived versions of the external parquet dataset (syn52506069)
 ########
 ## Set up Token access
-sts_token <- synapser::synGetStsStorageToken(entity = 'syn52506069', # sts enabled destination folder
+sts_token <- synapser::synGetStsStorageToken(entity = config::get('synapseParquet_sts_location'), # sts enabled destination folder
                                              permission = 'read_only',   # request a read only token
                                              output_format = 'json')
 
