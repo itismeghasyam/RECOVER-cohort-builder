@@ -50,7 +50,7 @@ manifest_df <- manifest_df %>%
 manifest_df <- manifest_df %>% 
   dplyr::select(drs_uri, name)
 
-write.csv(manifest_df,'drs_manifest.csv',row.names = FALSE)
+write.csv(manifest_df,'drs_manifest.csv',row.names = FALSE, quote = FALSE)
 
 # We can export more columns in the manifest file, all of those
 # columns will be treated as annotations for the file 
