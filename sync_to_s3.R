@@ -2,8 +2,11 @@
 # Cohort builder: Sync curated parquets to S3
 #############################
 ### Params
-LOCAL_COHORT_LOCATION <- config::get('LOCAL_COHORT_LOCATION')
-AWS_DESTINATION_LOCATION <- config::get('AWS_DESTINATION_LOCATION')
+ARCHIVE_VERSION <- '2025-08-08'
+# LOCAL_COHORT_LOCATION <- 's3://recover-velsera-integration/main/archive/2024-02-29/'
+LOCAL_COHORT_LOCATION <- paste0('./cohort_builder/main/archive/',ARCHIVE_VERSION,'/')
+AWS_DESTINATION_LOCATION <- paste0('s3://recover-velsera-integration/main/archive/',ARCHIVE_VERSION,'/')
+# AWS_DESTINATION_LOCATION <- 's3://recover-velsera-integration/main/parquet/'
 
 ####
 # Required libraries and functions
@@ -19,14 +22,14 @@ s3SyncFromLocal <- function(local_source = './cohort_builder', destination_bucke
   } # need to add acl permisisons as bucket-owner-full-control to upload/put objects in the bucket
   
   print(paste0('RUNNING: ',command_in))
-  system(command_in)
+  # system(command_in)
 }
 
 #############
 # Sync curated parquets from local EC2 to S3 bucket (recover-velsera-integration)
 #############
 # synapser::synLogin(daemon_acc, daemon_acc_password) # login into Synapse
-sts_token <- synapser::synGetStsStorageToken(entity = config::get('cohort_builder_sts_location'), # sts enabled folder in Synapse linked to S3 location
+sts_token <- synapser::synGetStsStorageToken(entity = 'syn54128737', # sts enabled folder in Synapse linked to S3 location
                                              permission = 'read_write',  
                                              output_format = 'json')
 
