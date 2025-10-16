@@ -1,10 +1,14 @@
 #############
 # Get a manifest of files to upload
 #############
-LOCATION_TO_UPLOAD <- config::get('LOCATION_TO_UPLOAD')
+library(synapser)
+
+ARCHIVE_VERSION <- '2025-08-08'
+
+LOCATION_TO_UPLOAD <- paste0('./cohort_builder/main/archive/',ARCHIVE_VERSION,'/')
 # Local location which needs to be indexed in Synapse
 
-SYNAPSE_PARENT_ID = config::get('SYNAPSE_PARENT_ID')
+SYNAPSE_PARENT_ID = 'syn68940807' #Synapse location
 # Synapse location where the S3 bucket objects are listed
 
 #############
@@ -26,11 +30,15 @@ if(!grepl(SYNAPSECLIENT_INSTALL_PATH,old_path)){
   ## We need to add the location of synapseclient to the system path so that it can recognize synapse cmd 
 }
 
-SYSTEM_COMMAND <- glue::glue('synapse manifest --parent-id {SYNAPSE_PARENT_ID} --manifest ./current_manifest.tsv {LOCATION_TO_UPLOAD}')
+# SYSTEM_COMMAND <- glue::glue('synapse manifest --parent-id {SYNAPSE_PARENT_ID} --manifest ./current_manifest.tsv {LOCATION_TO_UPLOAD}')
 
 ### If the above fails
 # SYNAPSE_AUTH_TOKEN = Sys.getenv('SYNAPSE_AUTH_TOKEN')
-# SYSTEM_COMMAND <- glue::glue('SYNAPSE_AUTH_TOKEN="{SYNAPSE_AUTH_TOKEN}" synapse manifest --parent-id {SYNAPSE_PARENT_ID} --manifest ./current_manifest.tsv {AWS_DOWNLOAD_LOCATION}')
+SYSTEM_COMMAND <- glue::glue('SYNAPSE_AUTH_TOKEN="{SYNAPSE_AUTH_TOKEN}" synapse manifest --parent-id {SYNAPSE_PARENT_ID} --manifest ./current_manifest.tsv {LOCATION_TO_UPLOAD}')
 
 ## Generate manifest file
 system(SYSTEM_COMMAND)
+
+## Create a versioned copy of current_manifest.csv
+file.copy('current_manifest.tsv', paste0('current_manifest_', ARCHIVE_VERSION, '.tsv'), overwrite = TRUE)
+
